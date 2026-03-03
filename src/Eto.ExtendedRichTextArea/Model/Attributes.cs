@@ -407,14 +407,23 @@ public class Attributes : INotifyPropertyChanged
 		if (attributes == null)
 			return clone;
 
-		if (attributes._family != null)
-			clone.Family = attributes._family;
-		if (attributes._typeface != null)
-			clone.Typeface = attributes._typeface;
-		if (attributes._bold != null)
-			clone.Bold = attributes._bold;
-		if (attributes._italic != null)
-			clone.Italic = attributes._italic;
+		if (attributes._family != null || attributes._typeface != null
+			|| attributes._bold != null || attributes._italic != null)
+		{
+			clone._font = null;
+			clone._baseFont = null;
+			if (attributes._family != null)
+				clone._family = attributes._family;
+			if (attributes._typeface != null)
+			{
+				clone._typeface = attributes._typeface;
+				clone._family = null;
+			}
+			if (attributes._bold != null)
+				clone._bold = attributes._bold;
+			if (attributes._italic != null)
+				clone._italic = attributes._italic;
+		}
 
 		if (attributes._size != null)
 			clone.Size = attributes._size;
