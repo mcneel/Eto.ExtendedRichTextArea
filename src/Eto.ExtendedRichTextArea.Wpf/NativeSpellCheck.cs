@@ -9,7 +9,6 @@ namespace Eto.ExtendedRichTextArea.Wpf;
 // the remaining vtable slots of each interface are intentionally omitted because nothing past the
 // declared methods is called. Method order MUST match the native vtable exactly.
 
-[SupportedOSPlatform("windows")]
 internal enum CorrectiveAction
 {
 	None = 0,
@@ -19,7 +18,6 @@ internal enum CorrectiveAction
 }
 
 [ComImport, Guid("8E018A9D-2415-4677-BF08-794EA61F94BB"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-[SupportedOSPlatform("windows")]
 internal interface ISpellCheckerFactory
 {
 	[return: MarshalAs(UnmanagedType.Interface)] IEnumString get_SupportedLanguages();
@@ -28,7 +26,6 @@ internal interface ISpellCheckerFactory
 }
 
 [ComImport, Guid("B6FD0B71-E2BC-4653-8D05-F197E412770B"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-[SupportedOSPlatform("windows")]
 internal interface ISpellChecker
 {
 	[return: MarshalAs(UnmanagedType.LPWStr)] string get_LanguageTag();
@@ -42,7 +39,6 @@ internal interface ISpellChecker
 // of ISpellChecker's members first, in order, then Remove — so the unused middle members are declared
 // purely to preserve slot layout (each declaration is one vtable slot, regardless of its signature).
 [ComImport, Guid("E7ED1C71-87F7-4378-A840-C9200DACEE47"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-[SupportedOSPlatform("windows")]
 internal interface ISpellChecker2
 {
 	[return: MarshalAs(UnmanagedType.LPWStr)] string get_LanguageTag();
@@ -64,7 +60,6 @@ internal interface ISpellChecker2
 }
 
 [ComImport, Guid("803E3BD4-2828-4410-8290-418D1D73C762"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-[SupportedOSPlatform("windows")]
 internal interface IEnumSpellingError
 {
 	// Returns null (S_FALSE) when enumeration is complete.
@@ -72,7 +67,6 @@ internal interface IEnumSpellingError
 }
 
 [ComImport, Guid("B7C82D61-FBE8-4B47-9B27-6C0D2E0DE0A3"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-[SupportedOSPlatform("windows")]
 internal interface ISpellingError
 {
 	uint get_StartIndex();
@@ -82,7 +76,6 @@ internal interface ISpellingError
 }
 
 [ComImport, Guid("00000101-0000-0000-C000-000000000046"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-[SupportedOSPlatform("windows")]
 internal interface IEnumString
 {
 	[PreserveSig]
