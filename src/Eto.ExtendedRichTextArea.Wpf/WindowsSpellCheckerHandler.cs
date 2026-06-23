@@ -18,7 +18,6 @@ namespace Eto.ExtendedRichTextArea.Wpf;
 /// (by the <c>Eto.ExtendedRichTextArea.Wpf</c> naming convention) when the document control's
 /// assembly is loaded on the WPF platform.
 /// </summary>
-[SupportedOSPlatform("windows")]
 public class WindowsSpellCheckerHandler : WidgetHandler<SpellChecker>, SpellChecker.IHandler
 {
 	readonly WindowsSpellChecker _checker = new WindowsSpellChecker();
