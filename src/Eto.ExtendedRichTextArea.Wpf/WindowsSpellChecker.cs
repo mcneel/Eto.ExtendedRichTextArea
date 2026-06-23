@@ -23,7 +23,6 @@ namespace Eto.ExtendedRichTextArea.Wpf;
 /// from the controller's background thread. If the API is unavailable (older OS / unsupported
 /// language) the methods degrade gracefully to "no problems".
 /// </remarks>
-[SupportedOSPlatform("windows")]
 public sealed class WindowsSpellChecker : ITextChecker, IDisposable
 {
 	static readonly Guid CLSID_SpellCheckerFactory = new Guid("7AB36653-1796-484B-BDFA-E74F1DB7C1DC");
