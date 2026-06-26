@@ -20,7 +20,10 @@ namespace Eto.ExtendedRichTextArea.Wpf;
 /// </summary>
 public class WindowsSpellCheckerHandler : WidgetHandler<SpellChecker>, SpellChecker.IHandler
 {
-	readonly WindowsSpellChecker _checker = new WindowsSpellChecker();
+	// Automatic multi-language: check against every spell-check dictionary installed on the system, so a
+	// word valid in any of the user's languages isn't flagged. No configuration — languages
+	// are managed in Windows settings, matching macOS NSSpellChecker.
+	readonly WindowsSpellChecker _checker = WindowsSpellChecker.CreateForInstalledLanguages();
 
 	public TextCheckTypes CheckTypes
 	{
