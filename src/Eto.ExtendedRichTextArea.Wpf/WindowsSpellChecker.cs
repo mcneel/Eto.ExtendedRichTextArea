@@ -52,10 +52,14 @@ public sealed class WindowsSpellChecker : ITextChecker, IDisposable
 
 	// Checkers in priority order; [0] is the primary. Empty when the API is unavailable.
 	readonly List<ISpellChecker> _checkers = new List<ISpellChecker>();
+	// BCP-47 tag for each entry in _checkers, in the same order, so a detected language tag can be mapped
+	// back to the checker that handles it.
+	readonly List<string> _checkerTags = new List<string>();
 	// Per-checker cache of "does this dictionary actually check the script of character X" (see
 	// IsScriptCheckedBy). Keyed by checker, then by a lowercased representative character.
 	readonly Dictionary<ISpellChecker, Dictionary<char, bool>> _scriptChecked = new Dictionary<ISpellChecker, Dictionary<char, bool>>();
 	bool _initialized;
+	bool _elsUnavailable; // set once when ELS language detection isn't usable, to stop retrying it
 	TextCheckTypes _checkTypes = TextCheckTypes.All;
 	bool _checkUppercaseWords;
 
@@ -163,7 +167,10 @@ public sealed class WindowsSpellChecker : ITextChecker, IDisposable
 				{
 					var checker = factory.CreateSpellChecker(language);
 					if (checker != null)
+					{
 						_checkers.Add(checker);
+						_checkerTags.Add(language);
+					}
 				}
 				catch
 				{
@@ -571,16 +578,27 @@ public sealed class WindowsSpellChecker : ITextChecker, IDisposable
 		return order;
 	}
 
-	// Caller must hold _lock. Approximates which configured language the context is written in by counting
-	// how many of its words each language accepts, returning that language's index (or -1 when it can't
-	// tell). The Windows spell API — unlike macOS NSSpellChecker — has no automatic language
-	// identification, so we infer it from the surrounding words ("Je", "le" → French). Bounded to the
-	// first several words so a context-menu open stays cheap.
+	// Caller must hold _lock. Identifies which configured language the context is written in and returns
+	// that language's checker index (or -1 when it can't tell). Tries ELS statistical language detection
+	// first (see IdentifyLanguageViaEls), the Windows analog of macOS NSSpellChecker's dominant-language
+	// identification; if that's unavailable or inconclusive it falls back to counting how many of the
+	// context's words each language accepts.
 	int IdentifyLanguageIndex(string? context)
 	{
 		if (string.IsNullOrEmpty(context) || _checkers.Count < 2)
 			return -1;
 
+		// Preferred: statistical detection from the sentence's overall shape. This works even when no
+		// single word is uniquely one language in the installed dictionaries — e.g. every Latin dictionary
+		// "accepts" the short words "Je"/"le" (the API doesn't flag them), so the word-counting fallback
+		// below can't tell French from English for "Je parl le francais", but ELS reports "fr".
+		var mapped = MapDetectedLanguageToChecker(IdentifyLanguageViaEls(context!));
+		if (mapped >= 0)
+			return mapped;
+
+		// Fallback (ELS unavailable, or context too short to identify — e.g. a single word): approximate
+		// the language by counting how many of the context's words each language accepts ("Je", "le" →
+		// French). Bounded to the first several words so a context-menu open stays cheap.
 		var token = CancellationToken.None;
 		var scores = new int[_checkers.Count];
 		var wordsScored = 0;
@@ -611,6 +629,168 @@ public sealed class WindowsSpellChecker : ITextChecker, IDisposable
 			}
 		}
 		return bestIndex;
+	}
+
+	// The primary subtag of a BCP-47 tag ("fr" from "fr-CA", "sr" from "sr-Latn-RS"). Used to match a
+	// neutral detected language ("fr") to a regional installed checker ("fr-FR", "fr-015", ...).
+	static string PrimarySubtag(string tag)
+	{
+		if (string.IsNullOrEmpty(tag))
+			return string.Empty;
+		var dash = tag.IndexOf('-');
+		return dash < 0 ? tag : tag.Substring(0, dash);
+	}
+
+	// Caller must hold _lock. Maps a detected BCP-47 language tag to the index of the configured checker
+	// that best matches it: an exact tag match first, else the first checker sharing its primary subtag
+	// (so a neutral detected "fr" picks the first installed French dictionary). Returns -1 when nothing
+	// matches (so the caller falls back to the word-counting heuristic).
+	int MapDetectedLanguageToChecker(string? detectedTag)
+	{
+		if (string.IsNullOrEmpty(detectedTag))
+			return -1;
+		for (int i = 0; i < _checkerTags.Count; i++)
+		{
+			if (string.Equals(_checkerTags[i], detectedTag, StringComparison.OrdinalIgnoreCase))
+				return i;
+		}
+		var primary = PrimarySubtag(detectedTag!);
+		for (int i = 0; i < _checkerTags.Count; i++)
+		{
+			if (string.Equals(PrimarySubtag(_checkerTags[i]), primary, StringComparison.OrdinalIgnoreCase))
+				return i;
+		}
+		return -1;
+	}
+
+	// ELS (Extended Linguistic Services) language-detection service GUID (ELS_GUID_LANGUAGE_DETECTION).
+	static readonly Guid ELS_GUID_LANGUAGE_DETECTION = new Guid("CF7E00B1-909B-4D95-A8F4-611F7C377702");
+
+	// Caller must hold _lock. Returns the dominant BCP-47 language tag ELS detects for <paramref name=
+	// "context"/> (most likely first), or null when ELS is unavailable or can't decide (e.g. a lone word —
+	// matching how macOS reports "und" for ambiguous input). Best-effort: any failure degrades to null so
+	// IdentifyLanguageIndex falls back to the word-counting heuristic.
+	string? IdentifyLanguageViaEls(string context)
+	{
+		if (_elsUnavailable || string.IsNullOrEmpty(context))
+			return null;
+
+		IntPtr pGuid = IntPtr.Zero, pOptions = IntPtr.Zero, services = IntPtr.Zero;
+		var bag = new MappingPropertyBag();
+		var bagFilled = false;
+		try
+		{
+			var options = new MappingEnumOptions { Size = (IntPtr)Marshal.SizeOf(typeof(MappingEnumOptions)) };
+			pGuid = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(Guid)));
+			Marshal.StructureToPtr(ELS_GUID_LANGUAGE_DETECTION, pGuid, false);
+			options.Guid = pGuid;
+			pOptions = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(MappingEnumOptions)));
+			Marshal.StructureToPtr(options, pOptions, false);
+
+			if (MappingGetServices(pOptions, out var services2, out var count) != S_OK || count == 0 || services2 == IntPtr.Zero)
+			{
+				_elsUnavailable = true; // the detection service isn't present; don't keep paying for the probe
+				return null;
+			}
+			services = services2;
+
+			bag.Size = (IntPtr)Marshal.SizeOf(typeof(MappingPropertyBag));
+			if (MappingRecognizeText(services, context, (uint)context.Length, 0, IntPtr.Zero, ref bag) != S_OK)
+				return null;
+			bagFilled = true;
+			if (bag.RangesCount == 0 || bag.ResultRanges == IntPtr.Zero)
+				return null;
+
+			var range = (MappingDataRange)Marshal.PtrToStructure(bag.ResultRanges, typeof(MappingDataRange));
+			if (range.Data == IntPtr.Zero)
+				return null;
+			// Data is the detected languages as consecutive null-terminated UTF-16 tags, most likely first.
+			// We only need the dominant one, so read the leading string (empty => ELS couldn't decide).
+			var tag = Marshal.PtrToStringUni(range.Data);
+			return string.IsNullOrEmpty(tag) ? null : tag;
+		}
+		catch (DllNotFoundException)
+		{
+			_elsUnavailable = true; // pre-ELS OS (shouldn't happen on Win8+); stop trying
+			return null;
+		}
+		catch
+		{
+			return null; // transient/unexpected: fall back this time but keep ELS enabled
+		}
+		finally
+		{
+			if (bagFilled)
+			{
+				try { MappingFreePropertyBag(ref bag); } catch { /* best effort */ }
+			}
+			if (services != IntPtr.Zero)
+			{
+				try { MappingFreeServices(services); } catch { /* best effort */ }
+			}
+			if (pOptions != IntPtr.Zero)
+				Marshal.FreeHGlobal(pOptions);
+			if (pGuid != IntPtr.Zero)
+				Marshal.FreeHGlobal(pGuid);
+		}
+	}
+
+	[DllImport("elscore.dll")]
+	static extern int MappingGetServices(IntPtr options, out IntPtr services, out uint servicesCount);
+
+	[DllImport("elscore.dll", CharSet = CharSet.Unicode)]
+	static extern int MappingRecognizeText(IntPtr serviceInfo, [MarshalAs(UnmanagedType.LPWStr)] string text, uint length, uint index, IntPtr options, ref MappingPropertyBag bag);
+
+	[DllImport("elscore.dll")]
+	static extern int MappingFreePropertyBag(ref MappingPropertyBag bag);
+
+	[DllImport("elscore.dll")]
+	static extern int MappingFreeServices(IntPtr serviceInfo);
+
+	// The subset of the ELS structs (elscore.h) we marshal. Pointer-sized fields are IntPtr; the
+	// service-info blob from MappingGetServices is opaque to us (passed straight back to
+	// MappingRecognizeText), so it isn't modelled.
+	[StructLayout(LayoutKind.Sequential)]
+	struct MappingEnumOptions
+	{
+		public IntPtr Size;
+		public IntPtr Category;
+		public IntPtr InputLanguage;
+		public IntPtr OutputLanguage;
+		public IntPtr InputScript;
+		public IntPtr OutputScript;
+		public IntPtr InputContentType;
+		public IntPtr OutputContentType;
+		public IntPtr Guid;
+		public uint Flags;
+	}
+
+	[StructLayout(LayoutKind.Sequential)]
+	struct MappingPropertyBag
+	{
+		public IntPtr Size;
+		public IntPtr ResultRanges;
+		public uint RangesCount;
+		public IntPtr ServiceData;
+		public uint ServiceDataSize;
+		public IntPtr CallerData;
+		public uint CallerDataSize;
+		public IntPtr Context;
+	}
+
+	[StructLayout(LayoutKind.Sequential)]
+	struct MappingDataRange
+	{
+		public uint StartIndex;
+		public uint EndIndex;
+		public IntPtr Description;
+		public uint DescriptionLength;
+		public IntPtr Data;
+		public uint DataSize;
+		public IntPtr ContentType;
+		public IntPtr ActionIds;
+		public uint ActionsCount;
+		public IntPtr ActionDisplayNames;
 	}
 
 	static List<string> FetchSuggestions(ISpellChecker checker, string word)
@@ -719,6 +899,7 @@ public sealed class WindowsSpellChecker : ITextChecker, IDisposable
 				}
 			}
 			_checkers.Clear();
+			_checkerTags.Clear();
 			_scriptChecked.Clear();
 		}
 	}
