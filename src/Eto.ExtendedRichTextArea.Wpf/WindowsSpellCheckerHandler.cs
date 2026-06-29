@@ -39,7 +39,7 @@ public class WindowsSpellCheckerHandler : WidgetHandler<SpellChecker>, SpellChec
 
 	public IReadOnlyList<TextProblem> Check(string text, CancellationToken token) => _checker.Check(text, token);
 
-	public IReadOnlyList<string> GetSuggestions(string word) => _checker.GetSuggestions(word);
+	public IReadOnlyList<string> GetSuggestions(string word, string? context = null) => _checker.GetSuggestions(word, context);
 
 	public void AddToDictionary(string word) => _checker.AddToDictionary(word);
 

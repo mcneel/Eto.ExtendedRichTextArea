@@ -383,7 +383,22 @@ internal sealed class SpellCheckController : ITextAdornment, IDisposable
 	}
 
 	/// <summary>Convenience passthrough to the active checker's suggestions; empty when no checker is set.</summary>
-	public IReadOnlyList<string> GetSuggestions(string word) => _checker?.GetSuggestions(word) ?? Array.Empty<string>();
+	public IReadOnlyList<string> GetSuggestions(string word, string? context = null) => _checker?.GetSuggestions(word, context) ?? Array.Empty<string>();
+
+	// The text of the paragraph containing a document index. Passed to the checker as language context so
+	// it can identify which language the clicked word is written in (a lone word is often ambiguous).
+	string GetParagraphText(int documentIndex)
+	{
+		foreach (var obj in _textArea.Document)
+		{
+			if (obj is not IBlockElement block)
+				continue;
+			var docStart = block.DocumentStart;
+			if (documentIndex >= docStart && documentIndex <= docStart + block.Length)
+				return block.Text;
+		}
+		return string.Empty;
+	}
 
 	/// <summary>
 	/// Builds context-menu items for the spelling/grammar problem at <paramref name="documentIndex"/>:
@@ -478,7 +493,7 @@ internal sealed class SpellCheckController : ITextAdornment, IDisposable
 
 		var options = Options;
 		var shown = 0;
-		foreach (var suggestion in GetSuggestions(word))
+		foreach (var suggestion in GetSuggestions(word, GetParagraphText(documentIndex)))
 		{
 			if (shown >= options.MaxSuggestions)
 				break;

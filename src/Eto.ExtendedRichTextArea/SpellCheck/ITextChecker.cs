@@ -114,7 +114,17 @@ public interface ITextChecker
 	/// Returns replacement suggestions for a flagged word, best match first.
 	/// May be called on the UI thread (e.g. when building a context menu), so keep it fast.
 	/// </summary>
-	IReadOnlyList<string> GetSuggestions(string word);
+	/// <param name="word">The flagged word to suggest corrections for.</param>
+	/// <param name="context">
+	/// Optional surrounding text (typically the word's paragraph) used to identify the language the word
+	/// is written in. A lone word is often ambiguous across the user's installed languages — many will
+	/// each propose an equally-close correction — so without context a multi-language checker can't tell
+	/// which language's suggestions to prefer and defaults to its primary, returning wrong-language
+	/// guesses (e.g. English corrections for a French word). Given the sentence, the checker can prefer
+	/// the right language. Pass null/empty when no context is available; the checker then falls back to
+	/// its best language-agnostic ordering.
+	/// </param>
+	IReadOnlyList<string> GetSuggestions(string word, string? context = null);
 
 	/// <summary>
 	/// Adds a word to the user dictionary so it is no longer flagged.

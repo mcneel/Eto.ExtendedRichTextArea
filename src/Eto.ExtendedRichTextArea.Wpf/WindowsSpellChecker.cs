@@ -507,7 +507,7 @@ public sealed class WindowsSpellChecker : ITextChecker, IDisposable
 		return starts;
 	}
 
-	public IReadOnlyList<string> GetSuggestions(string word)
+	public IReadOnlyList<string> GetSuggestions(string word, string? context = null)
 	{
 		if (string.IsNullOrEmpty(word))
 			return Array.Empty<string>();
@@ -518,12 +518,18 @@ public sealed class WindowsSpellChecker : ITextChecker, IDisposable
 			if (checkers.Count == 0)
 				return Array.Empty<string>();
 
-			// Merge suggestions from every language (primary first), de-duplicated.
+			// Query the language the word is written in first, then the rest. A lone word is ambiguous
+			// across the installed languages (many propose an equally-close correction), so without this
+			// the primary language's near-matches fill the menu and the right-language suggestion — e.g.
+			// "français" for "francais" — is pushed off the end by SpellCheckOptions.MaxSuggestions.
+			var order = LanguageOrder(context);
+
+			// Merge suggestions in that order, de-duplicated.
 			var result = new List<string>();
 			var seen = new HashSet<string>(StringComparer.CurrentCultureIgnoreCase);
-			for (int i = 0; i < checkers.Count; i++)
+			foreach (var index in order)
 			{
-				foreach (var suggestion in FetchSuggestions(checkers[i], word))
+				foreach (var suggestion in FetchSuggestions(checkers[index], word))
 				{
 					if (seen.Add(suggestion))
 						result.Add(suggestion);
@@ -535,9 +541,9 @@ public sealed class WindowsSpellChecker : ITextChecker, IDisposable
 			if (result.Count == 0 && SpellCheckText.IsUppercaseWord(word))
 			{
 				var lowered = word.ToLowerInvariant();
-				for (int i = 0; i < checkers.Count; i++)
+				foreach (var index in order)
 				{
-					foreach (var suggestion in FetchSuggestions(checkers[i], lowered))
+					foreach (var suggestion in FetchSuggestions(checkers[index], lowered))
 					{
 						var upper = suggestion.ToUpperInvariant();
 						if (seen.Add(upper))
@@ -547,6 +553,64 @@ public sealed class WindowsSpellChecker : ITextChecker, IDisposable
 			}
 			return result;
 		}
+	}
+
+	// Caller must hold _lock. The order to query languages for suggestions: the language the context
+	// (the word's sentence) is written in first, then the remaining languages in priority order.
+	List<int> LanguageOrder(string? context)
+	{
+		var order = new List<int>(_checkers.Count);
+		var identified = IdentifyLanguageIndex(context);
+		if (identified >= 0)
+			order.Add(identified);
+		for (int i = 0; i < _checkers.Count; i++)
+		{
+			if (i != identified)
+				order.Add(i);
+		}
+		return order;
+	}
+
+	// Caller must hold _lock. Approximates which configured language the context is written in by counting
+	// how many of its words each language accepts, returning that language's index (or -1 when it can't
+	// tell). The Windows spell API — unlike macOS NSSpellChecker — has no automatic language
+	// identification, so we infer it from the surrounding words ("Je", "le" → French). Bounded to the
+	// first several words so a context-menu open stays cheap.
+	int IdentifyLanguageIndex(string? context)
+	{
+		if (string.IsNullOrEmpty(context) || _checkers.Count < 2)
+			return -1;
+
+		var token = CancellationToken.None;
+		var scores = new int[_checkers.Count];
+		var wordsScored = 0;
+		foreach (var match in SpellCheckText.EnumerateWords(context!))
+		{
+			if (wordsScored >= 12)
+				break;
+			var contextWord = match.Value;
+			// All-caps tokens are presumed acronyms and aren't language-distinctive; skip them.
+			if (SpellCheckText.IsUppercaseWord(contextWord))
+				continue;
+			wordsScored++;
+			for (int i = 0; i < _checkers.Count; i++)
+			{
+				if (LanguageAcceptsWord(_checkers[i], contextWord, token))
+					scores[i]++;
+			}
+		}
+
+		var bestIndex = -1;
+		var bestScore = 0;
+		for (int i = 0; i < _checkers.Count; i++)
+		{
+			if (scores[i] > bestScore)
+			{
+				bestScore = scores[i];
+				bestIndex = i;
+			}
+		}
+		return bestIndex;
 	}
 
 	static List<string> FetchSuggestions(ISpellChecker checker, string word)

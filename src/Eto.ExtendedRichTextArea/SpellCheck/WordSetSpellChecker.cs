@@ -97,7 +97,8 @@ public sealed class WordSetSpellChecker : ITextChecker
 			return _words.Contains(word);
 	}
 
-	public IReadOnlyList<string> GetSuggestions(string word)
+	// context is unused: this checker has a single word set, so there is no language to disambiguate.
+	public IReadOnlyList<string> GetSuggestions(string word, string? context = null)
 	{
 		if (string.IsNullOrEmpty(word))
 			return Array.Empty<string>();

@@ -64,7 +64,7 @@ public class SpellChecker : Widget, ITextChecker
 	public IReadOnlyList<TextProblem> Check(string text, CancellationToken token) => Handler.Check(text, token);
 
 	/// <inheritdoc/>
-	public IReadOnlyList<string> GetSuggestions(string word) => Handler.GetSuggestions(word);
+	public IReadOnlyList<string> GetSuggestions(string word, string? context = null) => Handler.GetSuggestions(word, context);
 
 	/// <inheritdoc/>
 	public void AddToDictionary(string word) => Handler.AddToDictionary(word);
