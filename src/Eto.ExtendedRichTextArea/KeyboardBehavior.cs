@@ -25,7 +25,7 @@ class KeyboardBehavior
 		AddCommand(new CutCommand(textArea), "cut");
 		AddCommand(new CopyCommand(textArea), "copy");
 		AddCommand(new PasteCommand(textArea), "paste");
-		AddCommand(new PasteWithoutFormattingCommand(textArea));
+		AddCommand(new PasteWithoutFormattingCommand(textArea), "pasteAsPlainText");
 		AddCommand(new UndoCommand(textArea), "undo");
 		AddCommand(new RedoCommand(textArea), "redo");
 		AddCommand(new BoldCommand(textArea));
