@@ -28,6 +28,7 @@
 
 	<ItemGroup Condition="$(UseLocalEto) == 'True'">
 		<ProjectReference Include="$(LocalEtoPath)src\Eto.Mac\Eto.Mac64.csproj" />
+		<ProjectReference Include="$(LocalEtoPath)lib\monomac\src\MonoMac.csproj" />
 	</ItemGroup>
   
   <Import Project="$(LocalEtoPath)\src\Eto.Mac\build\Mac.targets" Condition="$(UseLocalEto) == 'True'" />

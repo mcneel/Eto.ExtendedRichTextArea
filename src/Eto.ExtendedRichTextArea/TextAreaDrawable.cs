@@ -400,8 +400,11 @@ partial class TextAreaDrawable : Drawable
 	public bool CanRedo => DocumentState?.CanRedo ?? false;
 
 	public bool AlwaysShowSelection { get; internal set; }
+
 	public void SetAvailableSize(Size size)
 	{
+		if (size.Width <= 0 || size.Height <= 0)
+			return;
 		if (_document != null)
 			_document.AvailableSize = size;
 		if (_placeholder != null)
