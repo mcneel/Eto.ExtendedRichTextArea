@@ -28,6 +28,7 @@ class KeyboardBehavior
 		AddCommand(new PasteWithoutFormattingCommand(textArea), "pasteAsPlainText");
 		AddCommand(new UndoCommand(textArea), "undo");
 		AddCommand(new RedoCommand(textArea), "redo");
+		AddCommand(new SelectAllCommand(textArea), "selectAll");
 		AddCommand(new BoldCommand(textArea));
 		AddCommand(new ItalicCommand(textArea));
 
@@ -145,17 +146,6 @@ class KeyboardBehavior
 		}
 	}
 
-	private void TextArea_KeyDown_Generic(object? sender, KeyEventArgs e)
-	{
-		switch (e.KeyData)
-		{
-			case Keys.Control | Keys.A:
-				_textArea.SetSelection(Document.GetRange(0, _textArea.Document.Length), true);
-				e.Handled = true;
-				break;
-		}
-	}
-
 	private void TextArea_KeyDown_Navigation_Generic(KeyEventArgs e)
 	{
 		switch (e.KeyData & ~Keys.Shift)
@@ -174,17 +164,6 @@ class KeyboardBehavior
 				break;
 			case Keys.End:
 				_caret.Navigate(DocumentNavigationMode.EndOfLine);
-				e.Handled = true;
-				break;
-		}
-	}
-
-	private void TextArea_KeyDown_Mac(object? sender, KeyEventArgs e)
-	{
-		switch (e.KeyData)
-		{
-			case Keys.Application | Keys.A:
-				_textArea.SetSelection(Document.GetRange(0, _textArea.Document.Length), true);
 				e.Handled = true;
 				break;
 		}
@@ -222,14 +201,6 @@ class KeyboardBehavior
 		var start = _textArea.Selection?.Start ?? _caret.Index;
 		var end = _textArea.Selection?.End ?? _caret.Index;
 		((IElement)_textArea.Document).OnKeyDown(start, end, e);
-
-		if (e.Handled)
-			return;
-
-		if (Platform.Instance.IsMac)
-			TextArea_KeyDown_Mac(sender, e);
-		else
-			TextArea_KeyDown_Generic(sender, e);
 
 		if (e.Handled)
 			return;
