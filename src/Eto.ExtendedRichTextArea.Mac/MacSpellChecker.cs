@@ -71,7 +71,9 @@ public sealed class MacSpellChecker : ITextChecker
 	{
 		_language = language;
 		_tag = (nint)NSSpellChecker.UniqueSpellDocumentTag;
-		_checker = new NSSpellChecker();
+		// A freed NSSpellChecker stays registered for distributed notifications (e.g. Dictation starting)
+		// and crashes when one arrives, so use the shared one. Language is app-wide on every instance anyway.
+		_checker = NSSpellChecker.SharedSpellChecker;
 		if (!string.IsNullOrEmpty(_language))
 			_checker.Language = _language;
 	}

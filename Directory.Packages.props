@@ -2,7 +2,7 @@
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     
-    <EtoFormsVersion>2.11.0</EtoFormsVersion>
+    <EtoFormsVersion>2.12.0</EtoFormsVersion>
   </PropertyGroup>
 
   <ItemGroup>

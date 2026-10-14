@@ -73,7 +73,16 @@ partial class TextAreaDrawable
 			return;
 
 		if (_compositionState != null)
-			DocumentState?.RestoreSnapshot(_compositionState.Value, true);	
+			DocumentState?.RestoreSnapshot(_compositionState.Value, true);
+
+		ResetComposition();
+	}
+
+	// Drops composition state without restoring its snapshot, which may belong to a previous document.
+	void ResetComposition()
+	{
+		if (!_isComposingText)
+			return;
 
 		_caret.IndexChanged -= Caret_IndexChangedDuringComposition;
 		_compositionState = null;

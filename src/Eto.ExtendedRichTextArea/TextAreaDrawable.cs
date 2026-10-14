@@ -71,6 +71,12 @@ partial class TextAreaDrawable : Drawable
 		get => _document ?? (Document = new Document());
 		set
 		{
+			if (_isComposingText)
+			{
+				// The composition snapshot belongs to the outgoing document, so finish with it there.
+				CancelTextComposition();
+				ResetComposition();
+			}
 			if (_document != null)
 			{
 				_document.Changed -= Document_Changed;
@@ -263,7 +269,9 @@ partial class TextAreaDrawable : Drawable
 			if (s is ExtraState extra)
 			{
 				_caret.SetIndex(extra.CaretIndex, false);
-				SetSelection(extra.Selection, true);
+				// A snapshot taken before the document was replaced holds a selection from the old one.
+				var selection = ReferenceEquals(extra.Selection?.Document, Document) ? extra.Selection : null;
+				SetSelection(selection, true);
 			}
 		};
 		state.RestoreExtraPost = s =>

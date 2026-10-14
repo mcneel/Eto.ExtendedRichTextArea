@@ -701,7 +701,7 @@ public sealed class WindowsSpellChecker : ITextChecker, IDisposable
 			if (bag.RangesCount == 0 || bag.ResultRanges == IntPtr.Zero)
 				return null;
 
-			var range = (MappingDataRange)Marshal.PtrToStructure(bag.ResultRanges, typeof(MappingDataRange));
+			var range = Marshal.PtrToStructure<MappingDataRange>(bag.ResultRanges);
 			if (range.Data == IntPtr.Zero)
 				return null;
 			// Data is the detected languages as consecutive null-terminated UTF-16 tags, most likely first.

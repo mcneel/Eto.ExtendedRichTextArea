@@ -14,9 +14,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os:
-          - windows-latest
-          - macos-latest
+        include:
+          - os: windows-latest
+            # the macos workload isn't available on Windows
+            solution: Eto.ExtendedRichTextArea.Windows.slnf
+          - os: macos-26
+            solution: Eto.ExtendedRichTextArea.slnx
 
     steps:
       - name: Checkout
@@ -27,11 +30,21 @@ jobs:
         with:
           global-json-file: global.json
 
+      - name: Install macOS workload
+        if: runner.os == 'macOS'
+        run: dotnet workload restore Eto.ExtendedRichTextArea.slnx
+
+      - name: Setup Xcode
+        if: runner.os == 'macOS'
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
       - name: Restore
-        run: dotnet restore Eto.ExtendedRichTextArea.slnx -p:UseLocalEto=False
+        run: dotnet restore ${{ matrix.solution }} -p:UseLocalEto=False
 
       - name: Build
-        run: dotnet build Eto.ExtendedRichTextArea.slnx --configuration Release --no-restore -p:UseLocalEto=False
+        run: dotnet build ${{ matrix.solution }} --configuration Release --no-restore -p:UseLocalEto=False
 
       - name: Test
         run: dotnet test test/Eto.ExtendedRichTextArea.UnitTest/Eto.ExtendedRichTextArea.UnitTest.csproj --configuration Release --no-build -p:UseLocalEto=False

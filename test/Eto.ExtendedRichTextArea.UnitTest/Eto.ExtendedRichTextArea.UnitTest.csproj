@@ -21,6 +21,7 @@
   
   <ItemGroup>
     <ProjectReference Include="..\..\src\Eto.ExtendedRichTextArea\Eto.ExtendedRichTextArea.csproj" />
+    <ProjectReference Include="..\..\src\Eto.ExtendedRichTextArea.Mac\Eto.ExtendedRichTextArea.Mac64.csproj" Condition="$([MSBuild]::IsOSPlatform(osx))" />
   </ItemGroup>
 
   <ItemGroup Condition="$(UseLocalEto) != 'True'">

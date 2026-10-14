@@ -1,0 +1,15 @@
+{
+  "solution": {
+    "path": "Eto.ExtendedRichTextArea.slnx",
+    "projects": [
+      "src\\Eto.ExtendedRichTextArea.Mac\\Eto.ExtendedRichTextArea.Mac64.csproj",
+      "src\\Eto.ExtendedRichTextArea.Wpf\\Eto.ExtendedRichTextArea.Wpf.csproj",
+      "src\\Eto.ExtendedRichTextArea\\Eto.ExtendedRichTextArea.csproj",
+      "test\\Eto.ExtendedRichTextArea.TestApp.Gtk\\Eto.ExtendedRichTextArea.TestApp.Gtk.csproj",
+      "test\\Eto.ExtendedRichTextArea.TestApp.Mac\\Eto.ExtendedRichTextArea.TestApp.Mac64.csproj",
+      "test\\Eto.ExtendedRichTextArea.TestApp.Wpf\\Eto.ExtendedRichTextArea.TestApp.Wpf.csproj",
+      "test\\Eto.ExtendedRichTextArea.TestApp\\Eto.ExtendedRichTextArea.TestApp.csproj",
+      "test\\Eto.ExtendedRichTextArea.UnitTest\\Eto.ExtendedRichTextArea.UnitTest.csproj"
+    ]
+  }
+}

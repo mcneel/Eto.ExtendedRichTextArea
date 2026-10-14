@@ -1,6 +1,11 @@
 using Eto.Drawing;
 using Eto.Forms;
 
+#if WINDOWS
+// WPF controls must be created on an STA thread
+[assembly: Apartment(ApartmentState.STA)]
+#endif
+
 namespace Eto.ExtendedRichTextArea.UnitTest;
 
 public class TestBase
